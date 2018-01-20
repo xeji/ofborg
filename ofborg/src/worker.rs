@@ -5,7 +5,8 @@ use std::marker::Send;
 use serde::Serialize;
 use serde_json;
 
-pub struct Worker<M, T: SimpleWorker<M>> {
+pub struct Worker<T: SimpleWorker<M>>
+    where M: Serialize {
     internal: T
 }
 
@@ -25,7 +26,8 @@ pub enum Action<M: ?Sized>
 }
 
 
-pub struct QueueMsgJSON<M> {
+pub struct QueueMsgJSON<M: ?Sized>
+    where M: Serialize {
     pub exchange: Option<String>,
     pub routing_key: Option<String>,
     pub content: M,
@@ -41,7 +43,7 @@ pub struct QueueMsg {
     pub content: Vec<u8>,
 }
 
-pub fn publish_serde_action<T: ?Sized, M>(exchange: Option<String>, routing_key: Option<String>, msg: &T) -> Action<M>
+pub fn publish_serde_action<T: ?Sized>(exchange: Option<String>, routing_key: Option<String>, msg: &T) -> Action<T>
     where
      T: Serialize {
     let props = BasicProperties {
@@ -68,7 +70,7 @@ pub trait SimpleWorker<M> {
                   body: &Vec<u8>) -> Result<Self::J, String>;
 }
 
-pub fn new<M, T: SimpleWorker<M>>(worker: T) -> Worker<T, M> {
+pub fn new<T: SimpleWorker<Sized>>(worker: T) -> Worker<T> {
     return Worker{
         internal: worker,
     };
@@ -76,7 +78,7 @@ pub fn new<M, T: SimpleWorker<M>>(worker: T) -> Worker<T, M> {
 
 
 
-impl <M, T: SimpleWorker<M> + Send> Consumer for Worker<T, M> {
+impl <T: SimpleWorker<Sized> + Send> Consumer for Worker<T> {
     fn handle_delivery(&mut self,
                        channel: &mut Channel,
                        method: Deliver,
