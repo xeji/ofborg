@@ -43,7 +43,7 @@ impl MassRebuildWorker {
     }
 }
 
-impl worker::SimpleWorker for MassRebuildWorker {
+impl worker::SimpleWorker<()> for MassRebuildWorker {
     type J = massrebuildjob::MassRebuildJob;
 
     fn msg_to_job(&self, _: &Deliver, _: &BasicProperties,
@@ -57,7 +57,7 @@ impl worker::SimpleWorker for MassRebuildWorker {
         }
     }
 
-    fn consumer(&self, job: &massrebuildjob::MassRebuildJob) -> worker::Actions {
+    fn consumer(&self, job: &massrebuildjob::MassRebuildJob) -> worker::Actions<()> {
         let repo = self.github
             .repo(job.repo.owner.clone(), job.repo.name.clone());
         let gists = self.github.gists();

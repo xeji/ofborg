@@ -17,13 +17,13 @@ pub struct Actions {
 }
 
 impl Actions {
-    pub fn skip(&mut self, _job: &MassRebuildJob) -> worker::Actions {
+    pub fn skip(&mut self, _job: &MassRebuildJob) -> worker::Actions<()> {
         return vec![
             worker::Action::Ack
         ];
     }
 
-    pub fn done(&mut self, _job: &MassRebuildJob) -> worker::Actions {
+    pub fn done(&mut self, _job: &MassRebuildJob) -> worker::Actions<()> {
         return vec![
             worker::Action::Ack
         ];
