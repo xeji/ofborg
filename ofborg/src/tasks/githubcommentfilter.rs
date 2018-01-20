@@ -11,6 +11,10 @@ use ofborg::worker;
 use ofborg::commentparser;
 use amqp::protocol::basic::{Deliver,BasicProperties};
 
+enum ProcessJob {
+    Eval(massrebuildjob::MassRebuildJob),
+    Build(buildjob::BuildJob),
+}
 
 pub struct GitHubCommentWorker {
     acl: acl::ACL,
@@ -26,7 +30,7 @@ impl GitHubCommentWorker {
     }
 }
 
-impl worker::SimpleWorker for GitHubCommentWorker {
+impl worker::SimpleWorker<ProcessJob> for GitHubCommentWorker {
     type J = ghevent::IssueComment;
 
     fn msg_to_job(&self, _: &Deliver, _: &BasicProperties,
@@ -40,7 +44,7 @@ impl worker::SimpleWorker for GitHubCommentWorker {
         }
     }
 
-    fn consumer(&self, job: &ghevent::IssueComment) -> worker::Actions {
+    fn consumer(&self, job: &ghevent::IssueComment) -> worker::Actions<ProcessJob> {
         let instructions = commentparser::parse(&job.comment.body);
         if instructions == None {
             return vec![
@@ -95,37 +99,36 @@ impl worker::SimpleWorker for GitHubCommentWorker {
             target_branch: Some(pr.base.commit_ref.clone())
         };
 
-        let mut response: Vec<worker::Action> = vec![];
+        let mut response: worker::Actions<ProcessJob> = vec![];
         if let Some(instructions) = instructions {
             for instruction in instructions {
                 match instruction {
                     commentparser::Instruction::Build(subset, attrs) => {
-                        let msg = buildjob::BuildJob{
-                            repo: repo_msg.clone(),
-                            pr: pr_msg.clone(),
-                            subset: Some(subset),
-                            attrs: attrs,
+                        let msg = worker::QueueMsgJSON{
+                            exchange: Some("build-jobs".to_owned()),
+                            routing_key: None,
+                            content: buildjob::BuildJob{
+                                repo: repo_msg.clone(),
+                                pr: pr_msg.clone(),
+                                subset: Some(subset),
+                                attrs: attrs,
+                            },
                         };
 
-                        response.push(worker::publish_serde_action(
-                            Some("build-jobs".to_owned()),
-                            None,
-                            &msg
-                        ));
+                        response.push(ProcessJob::Build(msg));
                     }
                     commentparser::Instruction::Eval => {
-                        let msg = massrebuildjob::MassRebuildJob{
-                            repo: repo_msg.clone(),
-                            pr: pr_msg.clone(),
+                        let msg = worker::QueueMsgJSON{
+                            exchange: None,
+                            routing_key: Some("mass-rebuild-check-jobs".to_owned()),
+                            content: massrebuildjob::MassRebuildJob{
+                                repo: repo_msg.clone(),
+                                pr: pr_msg.clone(),
+                            },
                         };
 
-                        response.push(worker::publish_serde_action(
-                            None,
-                            Some("mass-rebuild-check-jobs".to_owned()),
-                            &msg
-                        ));
+                        response.push(ProcessJob::Eval(msg));
                     }
-
                 }
             }
         }
