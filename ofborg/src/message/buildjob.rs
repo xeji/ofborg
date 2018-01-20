@@ -16,24 +16,28 @@ pub fn from(data: &Vec<u8>) -> Result<BuildJob, serde_json::error::Error> {
     return serde_json::from_slice(&data);
 }
 
+pub enum BuildFeedback {
+
+}
+
 pub struct Actions {
     pub system: String,
 }
 
 impl Actions {
-    pub fn commit_missing(&mut self, _job: &BuildJob) -> worker::Actions {
+    pub fn commit_missing(&mut self, _job: &BuildJob) -> worker::Actions<BuildFeedback> {
         return vec![
             worker::Action::Ack
         ];
     }
 
-    pub fn nasty_hack_linux_only(&mut self, _job: &BuildJob) -> worker::Actions {
+    pub fn nasty_hack_linux_only(&mut self, _job: &BuildJob) -> worker::Actions<BuildFeedback> {
         return vec![
             worker::Action::Ack
         ];
     }
 
-    pub fn merge_failed(&mut self, job: &BuildJob) -> worker::Actions {
+    pub fn merge_failed(&mut self, job: &BuildJob) -> worker::Actions<BuildFeedback> {
         let msg = buildresult::BuildResult {
             repo: job.repo.clone(),
             pr: job.pr.clone(),
@@ -52,7 +56,7 @@ impl Actions {
         ];
     }
 
-    pub fn build_finished(&mut self, job: &BuildJob, success: bool, lines: Vec<String>) -> worker::Actions {
+    pub fn build_finished(&mut self, job: &BuildJob, success: bool, lines: Vec<String>) -> worker::Actions<BuildFeedback> {
         let msg = buildresult::BuildResult {
             repo: job.repo.clone(),
             pr: job.pr.clone(),

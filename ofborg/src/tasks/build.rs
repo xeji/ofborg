@@ -9,6 +9,7 @@ use std::io::BufRead;
 
 use ofborg::checkout;
 use ofborg::message::buildjob;
+use ofborg::message::buildjob::BuildFeedback;
 use ofborg::nix;
 use ofborg::commentparser;
 
@@ -40,7 +41,7 @@ impl BuildWorker {
     }
 }
 
-impl worker::SimpleWorker for BuildWorker {
+impl worker::SimpleWorker<BuildFeedback> for BuildWorker {
     type J = buildjob::BuildJob;
 
     fn msg_to_job(&self, _: &Deliver, _: &BasicProperties,
@@ -55,7 +56,7 @@ impl worker::SimpleWorker for BuildWorker {
         }
     }
 
-    fn consumer(&self, job: &buildjob::BuildJob) -> worker::Actions {
+    fn consumer(&self, job: &buildjob::BuildJob) -> worker::Actions<BuildFeedback> {
         info!("Working on {}", job.pr.number);
         let project = self.cloner.project(job.repo.full_name.clone(), job.repo.clone_url.clone());
         let co = project.clone_for("builder".to_string(),
