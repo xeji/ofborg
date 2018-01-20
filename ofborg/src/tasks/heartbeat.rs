@@ -15,20 +15,17 @@ struct PlasticHeartbeatWorker {
 }
 
 impl PlasticHeartbeatWorker {
-    fn message(&self) -> worker::QueueMsg {
-        return worker::QueueMsg{
+    fn message(&self) -> worker::QueueMsgJSON<plasticheartbeat::PlasticHeartbeat> {
+        return worker::QueueMsgJSON{
             exchange: None,
             routing_key: Some(self.queue_name.clone()),
-            mandatory: true,
-            immediate: false,
-            properties: None,
-            content: serde_json::to_string(&plasticheartbeat::PlasticHeartbeat{}).unwrap().into_bytes()
+            content: plasticheartbeat::PlasticHeartbeat{}
         };
     }
 
 }
 
-impl worker::SimpleWorker for PlasticHeartbeatWorker {
+impl worker::SimpleWorker<plasticheartbeat::PlasticHeartbeat> for PlasticHeartbeatWorker {
     type J = plasticheartbeat::PlasticHeartbeat;
 
     fn msg_to_job(&self, _: &Deliver, _: &BasicProperties,
@@ -42,7 +39,7 @@ impl worker::SimpleWorker for PlasticHeartbeatWorker {
         }
     }
 
-    fn consumer(&self, _job: &plasticheartbeat::PlasticHeartbeat) -> worker::Actions {
+    fn consumer(&self, _job: &plasticheartbeat::PlasticHeartbeat) -> worker::Actions<plasticheartbeat::PlasticHeartbeat> {
         thread::sleep(time::Duration::from_secs(5));
 
         return vec![
