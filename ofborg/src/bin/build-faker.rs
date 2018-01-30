@@ -34,25 +34,25 @@ fn main() {
     let mut channel = session.open_channel(1).unwrap();
 
     let repo_msg = Repo {
-        clone_url: "https://github.com/nixos/ofborg.git".to_owned(),
-        full_name: "NixOS/ofborg".to_owned(),
+        clone_url: "https://github.com/nixos/nixpkgs.git".to_owned(),
+        full_name: "NixOS/nixpkgs".to_owned(),
         owner: "NixOS".to_owned(),
-        name: "ofborg".to_owned(),
+        name: "nixpkgs".to_owned(),
     };
 
     let pr_msg = Pr {
-        number: 42,
-        head_sha: "6dd9f0265d52b946dd13daf996f30b64e4edb446".to_owned(),
-        target_branch: Some("scratch".to_owned()),
+        number: 34402,
+        head_sha: "90164e40d384613dc62a419a21b86358b53ecfd8".to_owned(),
+        target_branch: Some("master".to_owned()),
     };
 
-    let logbackrk = "NixOS/ofborg.42".to_owned();
+    let logbackrk = "NixOS/nixpkgs.34402".to_owned();
 
     let msg = buildjob::BuildJob {
         repo: repo_msg.clone(),
         pr: pr_msg.clone(),
-        subset: Some(commentparser::Subset::Nixpkgs),
-        attrs: vec!["success".to_owned()],
+        subset: Some(commentparser::Subset::NixOS),
+        attrs: vec!["tests.openssh.x86_64-linux".to_owned()],
         logs: Some((Some("logs".to_owned()), Some(logbackrk.to_lowercase()))),
         statusreport: Some((None, Some("scratch".to_owned()))),
     };
@@ -63,7 +63,7 @@ fn main() {
         for _i in 1..2 {
             recv.tell(worker::publish_serde_action(
                 None,
-                Some("build-inputs-x86_64-darwin".to_owned()),
+                Some("build-inputs-aarch64-linux".to_owned()),
                 &msg,
             ));
         }
