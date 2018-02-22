@@ -4,45 +4,12 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-trait MetricClassList {
-    fn flat_events(self) -> Vec<MetricType>;
-}
-
-struct MetricClass {
-    pub rust_name: String,
-    pub metric_prefix: String,
-    pub metrics: Vec<MetricType>,
-}
-
-impl MetricClass {
-    pub fn new(name: &str, metrics: Vec<MetricType>) -> MetricClass {
-        let parts = name_to_parts(name);
-
-        MetricClass {
-            rust_name: name.clone().to_owned(),
-            metric_prefix: parts.join("_").to_lowercase(),
-            metrics: metrics,
-        }
-    }
-}
-
 enum MetricType {
     Ticker(Metric),
     Counter(Metric),
 }
 
 impl MetricType {
-    fn set_collection(&mut self, collection: &str) {
-        match self {
-            &mut MetricType::Ticker(ref mut metric) => {
-                metric.collection = Some(collection.to_owned())
-            }
-            &mut MetricType::Counter(ref mut metric) => {
-                metric.collection = Some(collection.to_owned())
-            }
-        }
-    }
-
     fn collector_type(&self) -> String {
         match self {
             &MetricType::Ticker(_) => {
@@ -67,14 +34,10 @@ impl MetricType {
     fn variant(&self) -> String {
         match self {
             &MetricType::Ticker(ref event) => {
-                format!("{}{}", event.collection.clone().unwrap_or("".to_owned()),
-                        &event.variant
-                )
+                event.variant.clone()
             }
             &MetricType::Counter(ref event) => {
-                format!("{}{}", event.collection.clone().unwrap_or("".to_owned()),
-                        &event.variant
-                )
+                event.variant.clone()
             }
         }
     }
@@ -201,7 +164,6 @@ struct Metric {
     fields: Vec<(String,String)>, // Vec because it is sorted
     metric_name: String,
     description: String,
-    collection: Option<String>,
 }
 
 
@@ -240,7 +202,6 @@ impl Metric {
                 .collect(),
             metric_name: parts.join("_").to_lowercase(),
             description: desc.to_owned(),
-            collection: None,
         })
     }
 
@@ -259,111 +220,73 @@ impl Metric {
                 .collect(),
             metric_name: parts.join("_").to_lowercase(),
             description: desc.to_owned(),
-            collection: None,
         })
     }
 }
 
-
-impl MetricClassList for Vec<MetricClass> {
-    fn flat_events(self) -> Vec<MetricType> {
-        self.into_iter()
-            .flat_map(|class| {
-                let collection = class.rust_name;
-
-                let ret: Vec<MetricType> = class.metrics
-                    .into_iter()
-                    .map(|mut metric| { metric.set_collection(&collection); return metric; })
-                    .collect();
-
-
-                return ret;
-            })
-            .collect()
-    }
-}
-
-fn events() -> Vec<MetricClass> {
+fn events() -> Vec<MetricType> {
     return vec![
-        MetricClass::new(
-            "StatCollector",
-            vec![
-                Metric::ticker(
-                    "LegacyEvent",
-                    "Number of received legacy events",
-                    Some(vec![("event", "String")]),
-                ),
-/*                Metric::ticker(
-                    "Event",
-                    "Number of received unparseable events",
-                    None,
-                ),*/
-            ],
+        Metric::ticker(
+            "StatCollectorLegacyEvent",
+            "Number of received legacy events",
+            Some(vec![("event", "String")]),
         ),
-        MetricClass::new(
-            "Worker",
-            vec![
-                Metric::ticker(
-                    "JobReceived",
-                    "Number of received worker jobs",
-                    None,
-                ),
-/*                Metric::ticker(
-                    "JobDecodeSuccess",
-                    "Number of successfully decoded jobs",
-                    None,
-                ),
-                Metric::ticker(
-                    "JobDecodeFailure",
-                    "Number of jobs which failed to parse",
-                    None,
-                ),
-*/
-            ],
+        Metric::ticker(
+            "StatCollectorBogusEvent",
+            "Number of received unparseable events",
+            None,
         ),
-        /*
-        MetricClass::new(
-            "Evaluator",
-            vec![
-                Metric::counter(
-                    "Duration",
-                    "Amount of time spent running evaluations",
-                    Some(vec![
-                        ("branch", "String"),
-                    ]),
-                ),
-                Metric::ticker(
-                    "DurationCount",
-                    "Number of timed evaluations performed",
-                    Some(vec![
-                        ("branch", "String"),
-                    ]),
-                ),
-                Metric::ticker(
-                    "TargetBranchFails",
-                    "Number of PR evaluations which failed because the target branch failed",
-                    Some(vec![
-                        ("branch", "String"),
-                    ]),
-                ),
-                Metric::ticker(
-                    "IssueAlreadyClosed",
-                    "Number of jobs for issues which are already closed",
-                    None,
-                ),
-                Metric::ticker(
-                    "IssueFetchFailed",
-                    "Number of failed fetches for GitHub issues",
-                    None,
-                ),
-                Metric::ticker(
-                    "CheckComplete",
-                    "Number of completed evaluation tasks",
-                    None,
-                ),
-            ],
+        Metric::ticker(
+            "JobReceived",
+            "Number of received worker jobs",
+            None,
         ),
-         */
+        Metric::counter(
+            "EvaluationDuration",
+            "Amount of time spent running evaluations",
+            Some(vec![
+                ("branch", "String"),
+            ]),
+        ),
+        Metric::ticker(
+            "EvaluationDurationCount",
+            "Number of timed evaluations performed",
+            Some(vec![
+                ("branch", "String"),
+            ]),
+        ),
+        Metric::ticker(
+            "TargetBranchFailsEvaluation",
+            "Number of PR evaluations which failed because the target branch failed",
+            Some(vec![
+                ("branch", "String"),
+            ]),
+        ),
+        Metric::ticker(
+            "JobDecodeSuccess",
+            "Number of successfully decoded jobs",
+            None,
+        ),
+        Metric::ticker(
+            "JobDecodeFailure",
+            "Number of jobs which failed to parse",
+            None,
+        ),
+        Metric::ticker(
+            "IssueAlreadyClosed",
+            "Number of jobs for issues which are already closed",
+            None,
+        ),
+        Metric::ticker(
+            "IssueFetchFailed",
+            "Number of failed fetches for GitHub issues",
+            None,
+        ),
+        Metric::ticker(
+            "TaskEvaluationCheckComplete",
+            "Number of completed evaluation tasks",
+            None,
+        ),
         /*
         Metric::counter(
             "TimeElapsed",
@@ -497,7 +420,6 @@ pub enum Event {
 ").unwrap();
 
     let variants: Vec<String> = events()
-        .flat_events()
         .iter()
         .map(|mtype| format!("  {}", mtype.enum_matcher_types()) )
         .collect();
@@ -511,7 +433,6 @@ pub enum Event {
 ").unwrap();
 
     let variants: Vec<String> = events()
-        .flat_events()
         .iter()
         .map(|mtype| {
             let fields: Vec<String> = mtype.enum_field_names()
@@ -548,7 +469,6 @@ pub struct MetricCollector {
 ").unwrap();
 
     let variants: Vec<String> = events()
-        .flat_events()
         .iter()
         .map(|mtype| {
             let mut fields: Vec<String> = mtype.enum_index_types();
@@ -573,7 +493,6 @@ impl MetricCollector {
 ").unwrap();
 
     let variants: Vec<String> = events()
-        .flat_events()
         .iter()
         .map(|mtype| {
             let mut fields: Vec<String> = mtype.enum_field_types();
@@ -595,7 +514,6 @@ impl MetricCollector {
 ").unwrap();
 
     let variants: Vec<String> = events()
-        .flat_events()
         .iter()
         .map(|mtype| {
             let fields: Vec<String> = mtype.enum_field_names();
@@ -640,8 +558,7 @@ impl MetricCollector {
     let mut output = String::new();
 ").unwrap();
 
-    let variants: Vec<String> = events()
-        .flat_events()
+        let variants: Vec<String> = events()
         .iter()
         .map(|mtype| {
             let mut index_fields: Vec<String> = mtype.enum_index_names();
@@ -697,4 +614,5 @@ impl MetricCollector {
     f.write_all(variants.join("\n").as_bytes()).unwrap();
     f.write_all("return output;\n  }".as_bytes()).unwrap();
     f.write_all("\n}".as_bytes()).unwrap();
+
 }
